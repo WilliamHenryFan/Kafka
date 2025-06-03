@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>註冊流程對比</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .register-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .register-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status-area {
+            min-height: 100px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #f8f9fa;
+        }
+        .loading {
+            display: none;
+            margin-top: 10px;
+        }
+        .success-message {
+            display: none;
+            color: #28a745;
+            margin-top: 10px;
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            margin-top: 10px;
+        }
+        .title-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .title-section h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .title-section p {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="title-section">
+            <h2>註冊流程對比</h2>
+            <p>體驗同步與非同步處理的差異</p>
+        </div>
+        
+        <div class="row">
+            <!-- 同步註冊表單 -->
+            <div class="col-md-6">
+                <div class="register-form">
+                    <h3>同步註冊流程</h3>
+                    <p class="text-muted">直接發送郵件，需要等待郵件發送完成</p>
+                    <form id="syncForm" onsubmit="return handleSyncRegister(event)">
+                        <div class="mb-3">
+                            <label for="syncUsername" class="form-label">使用者姓名</label>
+                            <input type="text" class="form-control" id="syncUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="syncEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="syncEmail" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">註冊</button>
+                        <div class="loading" id="syncLoading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span class="ms-2">正在發送郵件...</span>
+                        </div>
+                        <div class="error-message" id="syncError">
+                            郵件發送失敗，請稍後重試
+                        </div>
+                    </form>
+                    <div class="status-area" id="syncStatus">
+                        <h5>處理狀態：</h5>
+                        <div id="syncStatusContent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 非同步註冊表單 -->
+            <div class="col-md-6">
+                <div class="register-form">
+                    <h3>非同步註冊流程</h3>
+                    <p class="text-muted">使用 Kafka 處理郵件發送，立即完成註冊</p>
+                    <form id="asyncForm" onsubmit="return handleAsyncRegister(event)">
+                        <div class="mb-3">
+                            <label for="asyncUsername" class="form-label">使用者姓名</label>
+                            <input type="text" class="form-control" id="asyncUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="asyncEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="asyncEmail" required>
+                        </div>
+                        <button type="submit" class="btn btn-success">註冊</button>
+                        <div class="success-message" id="asyncSuccess">
+                            註冊成功！請至您的信箱確認郵件
+                        </div>
+                    </form>
+                    <div class="status-area" id="asyncStatus">
+                        <h5>郵件處理狀態：</h5>
+                        <div id="asyncStatusContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 同步註冊處理
+        function handleSyncRegister(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('syncUsername').value;
+            const email = document.getElementById('syncEmail').value;
+            
+            // 顯示載入中
+            document.getElementById('syncLoading').style.display = 'block';
+            document.getElementById('syncError').style.display = 'none';
+            
+            // 更新狀態
+            const statusContent = document.getElementById('syncStatusContent');
+            statusContent.innerHTML = `
+                <p>1. 開始註冊流程...</p>
+                <p>2. 正在發送確認郵件...</p>
+            `;
+            
+            // 模擬同步發送郵件
+            fetch('/register/sync', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, email })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('郵件發送失敗');
+                }
+                return response.json();
+            })
+            .then(data => {
+                statusContent.innerHTML += `<p>3. 郵件發送成功！</p>`;
+                document.getElementById('syncLoading').style.display = 'none';
+            })
+            .catch(error => {
+                statusContent.innerHTML += `<p>3. 郵件發送失敗！</p>`;
+                document.getElementById('syncLoading').style.display = 'none';
+                document.getElementById('syncError').style.display = 'block';
+            });
+            
+            return false;
+        }
+
+        // 非同步註冊處理
+        function handleAsyncRegister(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('asyncUsername').value;
+            const email = document.getElementById('asyncEmail').value;
+            
+            // 更新狀態
+            const statusContent = document.getElementById('asyncStatusContent');
+            statusContent.innerHTML = `
+                <p>1. 開始註冊流程...</p>
+                <p>2. 註冊成功！</p>
+                <p>3. 郵件發送任務已加入佇列</p>
+            `;
+            
+            // 發送非同步註冊請求
+            fetch('/register/async', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, email })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('asyncSuccess').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('asyncSuccess').style.display = 'none';
+                }, 3000);
+            });
+            
+            return false;
+        }
+
+        // 建立 SSE 連接監聽郵件處理狀態
+        const eventSource = new EventSource('/register/status');
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const statusContent = document.getElementById('asyncStatusContent');
+            if (data.status === 'EMAIL_SENT') {
+                statusContent.innerHTML += `<p>4. 郵件已發送給 ${data.username}</p>`;
+            }
+        };
+    </script>
+</body>
+</html> 
